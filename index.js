@@ -1,51 +1,64 @@
 var SHA256 = require('crypto-js/sha256');
 
 class Block {
-  constructor(index, data, prevHash) {
+  constructor(index, data, previousHash = '') {
     this.index = index;
     this.timestamp = Math.floor(Date.now() / 1000);
     this.data = data;
-    this.prevHash = prevHash;
-    this.hash = this.getHash();
+    this.previousHash = previousHash;
+    this.hash = this.calculateHash();
   }
 
-  getHash() {
-    return SHA256(JSON.stringify(this.data) + this.prevHash + this.index + this.timestamp).toString();
+  calculateHash() {
+    return SHA256(this.index + this.previousHash + this.timestamp + JSON.stringify(this.data)).toString();
   }
 }
 
-class BlockChain {
-  constructor(){
-    this.chain = [];
+class Blockchain{
+  constructor() {
+    this.chain = [this.createGenesisBlock()];
   }
 
-  addBlock(data) {
-    let index = this.chain.length;
-    let prevHash = this.chain.length !== 0 ? this.chain[this.chain.length - 1].hash : 0;
-    let block = new Block(index, data, prevHash);
-
-    this.chain.push(block);
+  createGenesisBlock() {
+    return new Block(0, "Genesis block", "0");
   }
 
-  chainIsValid() {
-    for(var i=0;i<this.chain.length;i++){
-      if(this.chain[i].hash !== this.chain[i].getHash()) 
+  getLatestBlock() {
+    return this.chain[this.chain.length - 1];
+  }
+
+  addBlock(newBlock) {
+    newBlock.previousHash = this.getLatestBlock().hash;
+    newBlock.hash = newBlock.calculateHash();
+    this.chain.push(newBlock);
+  }
+
+  isChainValid() {
+    for (let i = 1; i < this.chain.length; i++){
+      const currentBlock = this.chain[i];
+      const previousBlock = this.chain[i - 1];
+
+      if (currentBlock.hash !== currentBlock.calculateHash()) {
         return false;
-      if(i > 0 && this.chain[i].prevHash !== this.chain[i-1].hash)
+      }
+
+      if (currentBlock.previousHash !== previousBlock.hash) {
         return false;
+      }
     }
     return true;
   }
 }
 
-const myCoin = new BlockChain();
+let myCoin = new Blockchain();
 
-myCoin.addBlock({sender: "Brian", reciver: "Ryan", amount: 100});
-myCoin.addBlock({sender: "Bunlong", reciver: "Harry", amount: 50});
-myCoin.addBlock({sender: "Ken", reciver: "Jinglong", amount: 75});
+myCoin.addBlock(new Block(1, { amount: 4 }));
+myCoin.addBlock(new Block(2, { amount: 8 }));
 
 console.log(JSON.stringify(myCoin, null, 2));
 
-console.log("Validity: ", myCoin.chainIsValid());
-myCoin.chain[0].data.amount = 120;
-console.log("Validity: ", myCoin.chainIsValid());
+console.log('Blockchain valid? ' + myCoin.isChainValid());
+
+myCoin.chain[1].data = { amount: 100 };
+
+console.log("Blockchain valid? " + myCoin.isChainValid());
